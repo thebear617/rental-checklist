@@ -1,6 +1,6 @@
 const state = {
   query: '',
-  activePhase: 'screening'
+  activePhase: 'first-visit'
 };
 
 let searchTimer = null;
@@ -28,17 +28,27 @@ function getTotalItems(phase) {
 
 function getFilteredSections(phase) {
   const q = normalize(state.query);
-  if (!q) return phase.sections.map(s => ({ ...s, items: s.items, matchedCount: s.items.length }));
+  const filtered = [];
 
-  return phase.sections.map(section => {
-    const matched = section.items.filter(item => {
-      const inQ = normalize(item.q).includes(q);
-      const inHint = normalize(item.hint).includes(q);
-      const inTitle = normalize(section.title).includes(q);
-      return inQ || inHint || inTitle;
-    });
-    return { ...section, items: matched, matchedCount: matched.length };
-  }).filter(s => s.items.length > 0);
+  for (const section of phase.sections) {
+    let matched;
+    if (!q) {
+      matched = section.items;
+    } else {
+      matched = section.items.filter(item => {
+        const inQ = normalize(item.q).includes(q);
+        const inHint = normalize(item.hint).includes(q);
+        const inTitle = normalize(section.title).includes(q);
+        const inGroup = section.group ? normalize(section.group).includes(q) : false;
+        return inQ || inHint || inTitle || inGroup;
+      });
+    }
+    if (matched.length > 0) {
+      filtered.push({ ...section, items: matched });
+    }
+  }
+
+  return filtered;
 }
 
 function buildTabBar() {
@@ -48,7 +58,6 @@ function buildTabBar() {
     const total = getTotalItems(phase);
     html += `<button class="phase-tab${active}" role="tab" data-phase="${phase.id}" aria-selected="${phase.id === state.activePhase}">
       <span class="tab-phase">${escapeHtml(phase.title)}</span>
-      <span class="tab-label">${escapeHtml(phase.label)}</span>
       <span class="tab-count">${total}项</span>
     </button>`;
   }
@@ -58,20 +67,21 @@ function buildTabBar() {
 
 function buildStats(phase, filtered) {
   const total = getTotalItems(phase);
-  const matched = filtered.reduce((sum, s) => sum + s.items.length, 0);
-  const sectionCount = filtered.length;
+  const nowMatched = filtered.reduce((sum, s) => sum + s.items.length, 0);
+  const totalSections = phase.sections.length;
+  const nowSections = filtered.length;
 
   let html = '<div class="stat-grid">';
   html += `<div class="stat-card tone-dark">
     <span class="stat-value">${total}</span>
-    <span class="stat-label">本阶段检查项</span>
+    <span class="stat-label">检查项总数</span>
   </div>`;
   html += `<div class="stat-card tone-blue">
-    <span class="stat-value">${sectionCount}</span>
+    <span class="stat-value">${nowSections} / ${totalSections}</span>
     <span class="stat-label">检查区域</span>
   </div>`;
   html += `<div class="stat-card tone-amber">
-    <span class="stat-value">${matched}</span>
+    <span class="stat-value">${nowMatched}</span>
     <span class="stat-label">当前匹配</span>
   </div>`;
   html += '</div>';
@@ -83,12 +93,12 @@ function buildControls(phase) {
   html += '<div class="search-row">';
   html += `<div class="search-box">
     <span>搜索检查项</span>
-    <input type="search" id="searchInput"     placeholder="${escapeHtml(state.activePhase === 'screening' ? '如「地铁」「押金」「宠物」…' : state.activePhase === 'inspection' ? '如「插座」「漏水」「空调」…' : '如「押金」「验收」「违约金」…')}" value="${escapeHtml(state.query)}" autocomplete="off">
+    <input type="search" id="searchInput" placeholder="${escapeHtml(state.activePhase === 'first-visit' ? '如「插座」「空调」「噪声」…' : state.activePhase === 'second-visit' ? '如「空鼓」「实测」「灰区」…' : '如「押金」「验收」「拍照」…')}" value="${escapeHtml(state.query)}" autocomplete="off">
   </div>`;
   html += '</div>';
 
   html += '<div class="result-bar">';
-  html += `<span>${escapeHtml(phase.label)} · ${escapeHtml(phase.subtitle)}</span>`;
+  html += `<span>${escapeHtml(phase.subtitle)}</span>`;
   if (state.query) {
     html += '<button class="text-button" id="clearBtn">✕ 清除搜索</button>';
   }
@@ -111,15 +121,32 @@ function buildPhaseContent(phase) {
     return html;
   }
 
+  let lastGroup = null;
+
   for (const section of filtered) {
+    if (section.group && section.group !== lastGroup) {
+      html += `<div class="group-header">
+        <span class="group-title">${escapeHtml(section.group)}</span>
+        ${section.role ? `<span class="group-role">${escapeHtml(section.role)}</span>` : ''}
+      </div>`;
+      lastGroup = section.group;
+    } else if (!section.group && lastGroup !== null) {
+      lastGroup = null;
+    }
+
+    const isContract = state.activePhase === 'contract';
     const itemCount = section.items.length;
+
     html += `<section class="check-section">
       <div class="section-header">
-        <h2>${escapeHtml(section.title)}</h2>
+        <div class="section-header-left">
+          <h2>${escapeHtml(section.title)}</h2>
+          ${section.role ? `<span class="role-badge">${escapeHtml(section.role)}</span>` : ''}
+        </div>
         <span class="section-count">${itemCount} 项</span>
       </div>`;
 
-    if (phase.id === 'contract') {
+    if (isContract) {
       html += '<div class="contract-list">';
       for (let i = 0; i < section.items.length; i++) {
         const item = section.items[i];
