@@ -83,7 +83,7 @@ function buildControls(phase) {
   html += '<div class="search-row">';
   html += `<div class="search-box">
     <span>搜索检查项</span>
-    <input type="search" id="searchInput" placeholder="${escapeHtml(phase.id === 'screening' ? '如「地铁」「押金」「宠物」…' : phase.id === 'inspection' ? '如「插座」「漏水」「空调」…' : '如「押金」「验收」「违约金」…')}" value="${escapeHtml(state.query)}" autocomplete="off">
+    <input type="search" id="searchInput"     placeholder="${escapeHtml(state.activePhase === 'screening' ? '如「地铁」「押金」「宠物」…' : state.activePhase === 'inspection' ? '如「插座」「漏水」「空调」…' : '如「押金」「验收」「违约金」…')}" value="${escapeHtml(state.query)}" autocomplete="off">
   </div>`;
   html += '</div>';
 

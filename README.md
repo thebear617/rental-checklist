@@ -1,20 +1,14 @@
 # 租房对账表
 
-一个纯静态网页项目，用于租房看房时的全流程检查清单，帮助从周边环境、硬装、软装到合同条款逐项核对。
+三阶段检查清单：联系中介并首次看房 → 二次看房 → 三次看房并签合同。
 
-当前部署仓库：
+## 当前部署
 
-```text
-https://github.com/thebear617/rental-checklist
-```
-
-本地维护目录：
-
-```text
-/Users/mokaiche/Documents/house
-```
+仓库：https://github.com/thebear617/rental-checklist
 
 在线地址：https://thebear617.github.io/rental-checklist/
+
+本地维护：`/Users/mokaiche/Documents/house`
 
 ## 项目结构
 
@@ -24,49 +18,59 @@ https://github.com/thebear617/rental-checklist
 ├── css/
 │   └── style.css
 ├── js/
-│   ├── checklist-data.js    # 结构化检查项数据
-│   └── app.js               # 渲染、搜索与筛选逻辑
+│   ├── checklist-data.js    # 三阶段结构化问题数据
+│   └── app.js               # Tab 切换、搜索与渲染逻辑
+├── 租房对账表-V1.HTML        # 原始版本（保留）
 └── README.md
 ```
 
-## 数据从哪里来
+## 数据格式
 
-网页读取的数据文件是：
+`js/checklist-data.js` 定义 `phases` 数组，每阶段包含多个 `sections`，每个 section 包含若干问题：
 
-```text
-js/checklist-data.js
+```js
+{
+  id: 'screening',
+  title: '第一阶段',
+  label: '联系中介并首次看房',
+  subtitle: '…',
+  sections: [
+    {
+      title: '通勤与交通',
+      items: [
+        { q: '问题文本', hint: '为什么要问 / 要注意什么' }
+      ]
+    }
+  ]
+}
 ```
 
-这个文件定义 `checklistData`，每项检查包含：
-
-```text
-category       分类（周边与配套 / 硬装 / 软装 / 灰区 / 合同）
-subcategory    子分类（如 墙面、地面、水电 等）
-name           检查项名称
-desc           检查要点与判断标准
-```
-
-`js/app.js` 负责读取 `checklistData`，渲染统计总览、搜索框、分类筛选和检查清单表格。
+三个阶段：
+- **第一阶段 · 联系中介并首次看房**（16 项）：线上问清楚 + 首次实地看房，排除有硬伤的房源
+- **第二阶段 · 二次看房**（67 项）：带着首次发现的问题重点复查，逐项拍照留底
+- **第三阶段 · 三次看房并签合同**（10 项）：最终检查 + 签合同前逐条对账，保障押金能全退
 
 ## 功能
 
-- **搜索**：输入关键词即可过滤检查项，支持 200ms 防抖
-- **分类筛选**：按 5 大类快速定位
-- **统计面板**：实时显示各分类下的匹配项数
+- **三 Tab 切换**：按时间线分阶段，逐步推进
+- **搜索**：每个阶段独立的搜索框，200ms 防抖
+- **统计面板**：实时显示本阶段检查项/区域/匹配数
 - **响应式**：适配桌面和移动端
 
 ## 事实源头
 
-原始表单为独立 HTML 表格文件：
+原始表单：`/Users/mokaiche/Documents/house/租房对账表-V1.HTML`
 
-```text
-/Users/mokaiche/Documents/house/租房对账表-V1.HTML
+V2 已重构为结构化三阶段数据。后续修改直接编辑 `js/checklist-data.js`。
+
+## 更新流程
+
+1. 编辑 `js/checklist-data.js` 中的问题内容
+2. 本地打开 `index.html` 检查页面是否正常
+3. 提交并推送：
+
+```bash
+git add . && git commit -m "update: xxx" && git push origin main
 ```
 
-V2 版本已重构为结构化数据，存储在 `js/checklist-data.js` 中。后续修改检查项时，直接编辑该 JS 文件即可。
-
-## 维护规则
-
-- 新增检查项：在 `checklist-data.js` 对应分类的 `subcategories[].items[]` 中添加
-- 修改检查内容：编辑对应项的 `name` 或 `desc` 字段
-- 本地打开 `index.html` 检查页面是否正常
+网站通过 GitHub Pages 部署，push 后自动生效。

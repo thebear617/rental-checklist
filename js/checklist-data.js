@@ -2,8 +2,8 @@ const phases = [
   {
     id: 'screening',
     title: '第一阶段',
-    label: '联系中介',
-    subtitle: '线上问清，不看房就能排除不合格房源',
+    label: '联系中介并首次看房',
+    subtitle: '线上问清 + 首次实地看房，排除有硬伤的房源',
     sections: [
       {
         title: '通勤与交通',
@@ -56,8 +56,8 @@ const phases = [
   {
     id: 'inspection',
     title: '第二阶段',
-    label: '实地看房',
-    subtitle: '到了房子逐项检查、逐项拍照，发现问题当场提',
+    label: '二次看房',
+    subtitle: '带着第一次发现的问题重点复查，逐项拍照留底',
     sections: [
       {
         title: '入户 & 公共区域',
@@ -211,8 +211,8 @@ const phases = [
   {
     id: 'contract',
     title: '第三阶段',
-    label: '签合同',
-    subtitle: '决定租了，签合同前逐条对账，保障押金能全退',
+    label: '三次看房并签合同',
+    subtitle: '最终检查 + 签合同逐条对账，保障押金能全退',
     sections: [
       {
         title: '合同条款逐条确认',
