@@ -4,8 +4,6 @@ const state = {
   allExpanded: false
 };
 
-let searchTimer = null;
-
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -154,7 +152,10 @@ function buildControls(phase) {
   html += '<div class="search-row">';
   html += `<div class="search-box">
     <span>搜索检查项</span>
-    <input type="search" id="searchInput" placeholder="${escapeHtml(state.activePhase === 'first-visit' ? '如「插座」「空调」「噪声」…' : state.activePhase === 'second-visit' ? '如「空鼓」「实测」「灰区」…' : '如「押金」「验收」「拍照」…')}" value="${escapeHtml(state.query)}" autocomplete="off">
+    <div class="search-input-row">
+      <input type="search" id="searchInput" placeholder="${escapeHtml(state.activePhase === 'first-visit' ? '如「插座」「空调」「噪声」…' : state.activePhase === 'second-visit' ? '如「空鼓」「实测」「灰区」…' : '如「押金」「验收」「拍照」…')}" value="${escapeHtml(state.query)}" autocomplete="off">
+      <button class="search-btn" id="searchBtn" title="搜索（回车也可）">搜索</button>
+    </div>
   </div>`;
   html += '</div>';
 
@@ -397,19 +398,30 @@ function renderApp() {
   }
 
   const searchInput = document.getElementById('searchInput');
-  if (searchInput) {
-    searchInput.addEventListener('input', event => {
-      state.query = event.target.value;
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => {
-        state.allExpanded = !!state.query;
-        renderApp();
-      }, 200);
-    });
-    if (state.query) {
-      const len = state.query.length;
-      searchInput.setSelectionRange(len, len);
+  const searchBtn = document.getElementById('searchBtn');
+
+  function doSearch() {
+    const val = searchInput.value.trim();
+    if (val !== state.query) {
+      state.query = val;
+      state.allExpanded = !!val;
+      renderApp();
     }
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        doSearch();
+      }
+    });
+  }
+
+  if (searchBtn) {
+    searchBtn.addEventListener('click', () => {
+      doSearch();
+    });
   }
 
   const clearBtn = document.getElementById('clearBtn');
