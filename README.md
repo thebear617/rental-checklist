@@ -2,6 +2,20 @@
 
 一个纯静态网页项目，用于租房看房时的全流程检查清单，帮助从周边环境、硬装、软装到合同条款逐项核对。
 
+当前部署仓库：
+
+```text
+https://github.com/thebear617/rental-checklist
+```
+
+本地维护目录：
+
+```text
+/Users/mokaiche/Documents/house
+```
+
+在线地址：https://thebear617.github.io/rental-checklist/
+
 ## 项目结构
 
 ```text
