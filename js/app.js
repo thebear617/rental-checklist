@@ -20,35 +20,73 @@ function normalize(value) {
 
 function getTotalItems(phase) {
   let count = 0;
-  for (const section of phase.sections) {
-    count += section.items.length;
+  if (phase.parts) {
+    for (const part of phase.parts) {
+      for (const group of part.groups) {
+        for (const section of group.sections) {
+          count += section.items.length;
+        }
+      }
+    }
+  } else if (phase.sections) {
+    for (const section of phase.sections) {
+      count += section.items.length;
+    }
   }
   return count;
 }
 
-function getFilteredSections(phase) {
+function matchItem(item, sectionTitle, groupTitle, partTitle) {
   const q = normalize(state.query);
-  const filtered = [];
+  if (!q) return true;
+  return normalize(item.q).includes(q)
+    || normalize(item.hint).includes(q)
+    || normalize(sectionTitle).includes(q)
+    || (groupTitle && normalize(groupTitle).includes(q))
+    || (partTitle && normalize(partTitle).includes(q));
+}
 
-  for (const section of phase.sections) {
-    let matched;
-    if (!q) {
-      matched = section.items;
-    } else {
-      matched = section.items.filter(item => {
-        const inQ = normalize(item.q).includes(q);
-        const inHint = normalize(item.hint).includes(q);
-        const inTitle = normalize(section.title).includes(q);
-        const inGroup = section.group ? normalize(section.group).includes(q) : false;
-        return inQ || inHint || inTitle || inGroup;
-      });
+function getFilteredParts(phase) {
+  const results = [];
+  if (!phase.parts) return results;
+
+  for (const part of phase.parts) {
+    const filteredGroups = [];
+    for (const group of part.groups) {
+      const filteredSections = [];
+      for (const section of group.sections) {
+        const matched = section.items.filter(item =>
+          matchItem(item, section.title, group.title || '', part.title)
+        );
+        if (matched.length > 0) {
+          filteredSections.push({ ...section, items: matched });
+        }
+      }
+      if (filteredSections.length > 0) {
+        filteredGroups.push({ ...group, sections: filteredSections });
+      }
     }
-    if (matched.length > 0) {
-      filtered.push({ ...section, items: matched });
+    if (filteredGroups.length > 0) {
+      results.push({ ...part, groups: filteredGroups });
     }
   }
+  return results;
+}
 
-  return filtered;
+function getFilteredSections(phase) {
+  const results = [];
+  if (!phase.sections) return results;
+
+  let lastGroup = null;
+  for (const section of phase.sections) {
+    const matched = section.items.filter(item =>
+      matchItem(item, section.title, section.group || '', '')
+    );
+    if (matched.length > 0) {
+      results.push({ ...section, items: matched, _group: section.group || null });
+    }
+  }
+  return results;
 }
 
 function buildTabBar() {
@@ -65,11 +103,35 @@ function buildTabBar() {
   return html;
 }
 
-function buildStats(phase, filtered) {
+function buildStats(phase) {
   const total = getTotalItems(phase);
-  const nowMatched = filtered.reduce((sum, s) => sum + s.items.length, 0);
-  const totalSections = phase.sections.length;
-  const nowSections = filtered.length;
+
+  const phaseData = phases.find(p => p.id === state.activePhase);
+  let nowMatched = 0;
+  let nowSections = 0;
+  let totalSections = 0;
+
+  if (phaseData && phaseData.parts) {
+    const filtered = getFilteredParts(phaseData);
+    for (const part of filtered) {
+      for (const group of part.groups) {
+        for (const section of group.sections) {
+          nowMatched += section.items.length;
+          nowSections++;
+        }
+      }
+    }
+    for (const part of phaseData.parts) {
+      for (const group of part.groups) {
+        totalSections += group.sections.length;
+      }
+    }
+  } else if (phaseData && phaseData.sections) {
+    const filtered = getFilteredSections(phaseData);
+    nowMatched = filtered.reduce((sum, s) => sum + s.items.length, 0);
+    nowSections = filtered.length;
+    totalSections = phaseData.sections.length;
+  }
 
   let html = '<div class="stat-grid">';
   html += `<div class="stat-card tone-dark">
@@ -107,70 +169,141 @@ function buildControls(phase) {
   return html;
 }
 
-function buildPhaseContent(phase) {
-  const filtered = getFilteredSections(phase);
-
-  let html = buildStats(phase, filtered);
-  html += buildControls(phase);
-
-  if (filtered.length === 0) {
-    html += `<div class="empty-state">
-      <p style="font-size:1.1rem;font-weight:800;color:var(--text)">没有匹配的检查项</p>
-      <p>试试其他关键词</p>
-    </div>`;
+function buildItems(items, isContract) {
+  if (isContract) {
+    let html = '<div class="contract-list">';
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      html += `<div class="contract-item">
+        <div class="contract-num">${String(i + 1).padStart(2, '0')}</div>
+        <div class="contract-body">
+          <p class="contract-q">${escapeHtml(item.q)}</p>
+          <p class="check-hint">${escapeHtml(item.hint)}</p>
+        </div>
+      </div>`;
+    }
+    html += '</div>';
     return html;
   }
 
+  let html = '<div class="check-list">';
+  let lastSub = undefined;
+  for (const item of items) {
+    if (item.sub !== undefined && item.sub !== lastSub) {
+      if (item.sub) {
+        html += `<div class="item-sub">${escapeHtml(item.sub)}</div>`;
+      }
+      lastSub = item.sub;
+    }
+    html += `<div class="check-item${item.sub ? ' has-sub' : ''}">
+      <p class="check-q">${escapeHtml(item.q)}</p>
+      <p class="check-hint">${escapeHtml(item.hint)}</p>
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function buildSectionCard(section, isContract) {
+  let html = '<section class="check-section">';
+  html += '<div class="section-header">';
+  html += '<div class="section-header-left">';
+  html += `<h2>${escapeHtml(section.title)}</h2>`;
+  if (section.role) {
+    html += `<span class="role-badge">${escapeHtml(section.role)}</span>`;
+  }
+  html += '</div>';
+  html += `<span class="section-count">${section.items.length} 项</span>`;
+  html += '</div>';
+
+  if (section.note) {
+    html += `<div class="section-note">${escapeHtml(section.note)}</div>`;
+  }
+
+  html += buildItems(section.items, isContract);
+  html += '</section>';
+  return html;
+}
+
+function buildPartsView(phase) {
+  const filteredParts = getFilteredParts(phase);
+  const isContract = false;
+
+  let html = '';
+  for (const part of filteredParts) {
+    html += `<div class="part-header">
+      <h2 class="part-title">${escapeHtml(part.title)}</h2>
+    </div>`;
+
+    for (const group of part.groups) {
+      if (group.title) {
+        html += '<div class="group-header">';
+        html += `<span class="group-title">${escapeHtml(group.title)}</span>`;
+        if (group.role) {
+          html += `<span class="group-role">${escapeHtml(group.role)}</span>`;
+        }
+        html += '</div>';
+      }
+      if (group.note) {
+        html += `<div class="group-note">${escapeHtml(group.note)}</div>`;
+      }
+      for (const section of group.sections) {
+        html += buildSectionCard(section, isContract);
+      }
+    }
+  }
+  return html;
+}
+
+function buildFlatView(phase) {
+  const filteredSections = getFilteredSections(phase);
+  const isContract = state.activePhase === 'contract';
+
+  let html = '';
   let lastGroup = null;
 
-  for (const section of filtered) {
-    if (section.group && section.group !== lastGroup) {
+  for (const section of filteredSections) {
+    if (section._group && section._group !== lastGroup) {
       html += `<div class="group-header">
-        <span class="group-title">${escapeHtml(section.group)}</span>
-        ${section.role ? `<span class="group-role">${escapeHtml(section.role)}</span>` : ''}
+        <span class="group-title">${escapeHtml(section._group)}</span>
       </div>`;
-      lastGroup = section.group;
-    } else if (!section.group && lastGroup !== null) {
+      lastGroup = section._group;
+    } else if (!section._group) {
       lastGroup = null;
     }
 
-    const isContract = state.activePhase === 'contract';
-    const itemCount = section.items.length;
+    html += buildSectionCard(section, isContract);
+  }
+  return html;
+}
 
-    html += `<section class="check-section">
-      <div class="section-header">
-        <div class="section-header-left">
-          <h2>${escapeHtml(section.title)}</h2>
-          ${section.role ? `<span class="role-badge">${escapeHtml(section.role)}</span>` : ''}
-        </div>
-        <span class="section-count">${itemCount} 项</span>
+function buildPhaseContent(phase) {
+  let html = buildStats(phase);
+  html += buildControls(phase);
+
+  const phaseData = phases.find(p => p.id === state.activePhase);
+  if (!phaseData) return html;
+
+  if (phaseData.parts) {
+    const filtered = getFilteredParts(phaseData);
+    if (filtered.length === 0) {
+      html += `<div class="empty-state">
+        <p style="font-size:1.1rem;font-weight:800;color:var(--text)">没有匹配的检查项</p>
+        <p>试试其他关键词</p>
       </div>`;
-
-    if (isContract) {
-      html += '<div class="contract-list">';
-      for (let i = 0; i < section.items.length; i++) {
-        const item = section.items[i];
-        html += `<div class="contract-item">
-          <div class="contract-num">${String(i + 1).padStart(2, '0')}</div>
-          <div class="contract-body">
-            <p class="contract-q">${escapeHtml(item.q)}</p>
-            <p class="check-hint">${escapeHtml(item.hint)}</p>
-          </div>
-        </div>`;
-      }
-      html += '</div>';
     } else {
-      html += '<div class="check-list">';
-      for (const item of section.items) {
-        html += `<div class="check-item">
-          <p class="check-q">${escapeHtml(item.q)}</p>
-          <p class="check-hint">${escapeHtml(item.hint)}</p>
-        </div>`;
-      }
-      html += '</div>';
+      html += buildPartsView(phaseData);
     }
-
-    html += '</section>';
+  } else if (phaseData.sections) {
+    const filtered = getFilteredSections(phaseData);
+    if (filtered.length === 0) {
+      html += `<div class="empty-state">
+        <p style="font-size:1.1rem;font-weight:800;color:var(--text)">没有匹配的检查项</p>
+        <p>试试其他关键词</p>
+      </div>`;
+    } else {
+      html += buildFlatView(phaseData);
+    }
   }
 
   return html;
