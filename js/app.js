@@ -1,6 +1,7 @@
 const state = {
   query: '',
-  activePhase: 'first-visit'
+  activePhase: 'first-visit',
+  allExpanded: false
 };
 
 let searchTimer = null;
@@ -77,7 +78,6 @@ function getFilteredSections(phase) {
   const results = [];
   if (!phase.sections) return results;
 
-  let lastGroup = null;
   for (const section of phase.sections) {
     const matched = section.items.filter(item =>
       matchItem(item, section.title, section.group || '', '')
@@ -105,7 +105,6 @@ function buildTabBar() {
 
 function buildStats(phase) {
   const total = getTotalItems(phase);
-
   const phaseData = phases.find(p => p.id === state.activePhase);
   let nowMatched = 0;
   let nowSections = 0;
@@ -161,9 +160,12 @@ function buildControls(phase) {
 
   html += '<div class="result-bar">';
   html += `<span>${escapeHtml(phase.subtitle)}</span>`;
+  html += '<div class="result-actions">';
+  html += `<button class="text-button" id="toggleAllBtn">${state.allExpanded ? '▾ 全部收起' : '▸ 全部展开'}</button>`;
   if (state.query) {
     html += '<button class="text-button" id="clearBtn">✕ 清除搜索</button>';
   }
+  html += '</div>';
   html += '</div>';
   html += '</div>';
   return html;
@@ -204,8 +206,10 @@ function buildItems(items, isContract) {
   return html;
 }
 
-function buildSectionCard(section, isContract) {
-  let html = '<section class="check-section">';
+function buildSectionCard(section, isContract, defaultOpen) {
+  const openClass = defaultOpen ? ' open' : ' collapsed';
+
+  let html = `<section class="check-section${openClass}" data-section="${escapeHtml(section.title)}">`;
   html += '<div class="section-header">';
   html += '<div class="section-header-left">';
   html += `<h2>${escapeHtml(section.title)}</h2>`;
@@ -213,14 +217,20 @@ function buildSectionCard(section, isContract) {
     html += `<span class="role-badge">${escapeHtml(section.role)}</span>`;
   }
   html += '</div>';
+  html += '<div class="section-header-right">';
   html += `<span class="section-count">${section.items.length} 项</span>`;
+  html += '<span class="section-arrow">▸</span>';
   html += '</div>';
+  html += '</div>';
+
+  html += '<div class="section-body">';
 
   if (section.note) {
     html += `<div class="section-note">${escapeHtml(section.note)}</div>`;
   }
 
   html += buildItems(section.items, isContract);
+  html += '</div>';
   html += '</section>';
   return html;
 }
@@ -248,7 +258,7 @@ function buildPartsView(phase) {
         html += `<div class="group-note">${escapeHtml(group.note)}</div>`;
       }
       for (const section of group.sections) {
-        html += buildSectionCard(section, isContract);
+        html += buildSectionCard(section, isContract, state.allExpanded);
       }
     }
   }
@@ -272,7 +282,7 @@ function buildFlatView(phase) {
       lastGroup = null;
     }
 
-    html += buildSectionCard(section, isContract);
+    html += buildSectionCard(section, isContract, state.allExpanded);
   }
   return html;
 }
@@ -309,6 +319,59 @@ function buildPhaseContent(phase) {
   return html;
 }
 
+function setupAccordion() {
+  const sectionHeaders = document.querySelectorAll('.section-header');
+  for (const header of sectionHeaders) {
+    header.addEventListener('click', () => {
+      const section = header.parentElement;
+      const wasOpen = section.classList.contains('open');
+
+      section.classList.toggle('open');
+      section.classList.toggle('collapsed');
+
+      const body = section.querySelector('.section-body');
+      if (section.classList.contains('open')) {
+        body.style.maxHeight = body.scrollHeight + 'px';
+      } else {
+        body.style.maxHeight = '0px';
+      }
+    });
+  }
+
+  const bodyEls = document.querySelectorAll('.section-body');
+  for (const body of bodyEls) {
+    const section = body.parentElement;
+    if (section.classList.contains('open')) {
+      body.style.maxHeight = body.scrollHeight + 'px';
+    } else {
+      body.style.maxHeight = '0px';
+    }
+  }
+}
+
+function setupToggleAll() {
+  const btn = document.getElementById('toggleAllBtn');
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    state.allExpanded = !state.allExpanded;
+    const sections = document.querySelectorAll('.check-section');
+    for (const section of sections) {
+      const body = section.querySelector('.section-body');
+      if (state.allExpanded) {
+        section.classList.add('open');
+        section.classList.remove('collapsed');
+        body.style.maxHeight = body.scrollHeight + 'px';
+      } else {
+        section.classList.remove('open');
+        section.classList.add('collapsed');
+        body.style.maxHeight = '0px';
+      }
+    }
+    btn.textContent = state.allExpanded ? '▾ 全部收起' : '▸ 全部展开';
+  });
+}
+
 function renderApp() {
   const app = document.getElementById('app');
   const phase = phases.find(p => p.id === state.activePhase) || phases[0];
@@ -320,11 +383,15 @@ function renderApp() {
 
   app.innerHTML = html;
 
+  setupAccordion();
+  setupToggleAll();
+
   const tabs = document.querySelectorAll('.phase-tab');
   for (const tab of tabs) {
     tab.addEventListener('click', () => {
       state.activePhase = tab.dataset.phase;
       state.query = '';
+      state.allExpanded = false;
       renderApp();
     });
   }
@@ -334,7 +401,10 @@ function renderApp() {
     searchInput.addEventListener('input', event => {
       state.query = event.target.value;
       clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => renderApp(), 200);
+      searchTimer = setTimeout(() => {
+        state.allExpanded = !!state.query;
+        renderApp();
+      }, 200);
     });
     if (state.query) {
       const len = state.query.length;
@@ -346,6 +416,7 @@ function renderApp() {
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       state.query = '';
+      state.allExpanded = false;
       renderApp();
     });
   }

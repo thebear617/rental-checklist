@@ -262,6 +262,12 @@ button {
   font-size: .88rem;
 }
 
+.result-actions {
+  display: flex;
+  gap: .6rem;
+  align-items: center;
+}
+
 .text-button {
   display: inline-flex;
   align-items: center;
@@ -372,6 +378,13 @@ button {
   padding: .9rem 1.1rem;
   background: #2f2924;
   color: #fff;
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s;
+}
+
+.section-header:hover {
+  background: #3b342d;
 }
 
 .section-header-left {
@@ -398,11 +411,41 @@ button {
   font-weight: 700;
 }
 
-.section-count {
+.section-header-right {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
   flex-shrink: 0;
+}
+
+.section-count {
   font-size: .75rem;
   font-weight: 700;
   color: #f7c974;
+}
+
+.section-arrow {
+  font-size: .85rem;
+  transition: transform .2s ease;
+  color: #f7c974;
+}
+
+.check-section.open .section-arrow {
+  transform: rotate(90deg);
+}
+
+.section-body {
+  overflow: hidden;
+  transition: max-height .3s ease, opacity .2s ease;
+}
+
+.check-section.collapsed .section-body {
+  max-height: 0 !important;
+  opacity: 0;
+}
+
+.check-section.collapsed .section-note {
+  display: none;
 }
 
 .check-list {
