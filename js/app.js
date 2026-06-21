@@ -153,7 +153,7 @@ function buildControls(phase) {
   html += `<div class="search-box">
     <span>搜索检查项</span>
     <div class="search-input-row">
-      <input type="search" id="searchInput" placeholder="${escapeHtml(state.activePhase === 'first-visit' ? '如「插座」「空调」「噪声」…' : state.activePhase === 'second-visit' ? '如「空鼓」「实测」「灰区」…' : '如「押金」「验收」「拍照」…')}" value="${escapeHtml(state.query)}" autocomplete="off">
+      <input type="search" id="searchInput" placeholder="${escapeHtml(state.activePhase === 'first-visit' ? '如「插座」「空调」「噪声」…' : state.activePhase === 'second-visit' ? '如「空鼓」「实测」「灰区」…' : state.activePhase === 'contract' ? '如「押金」「验收」「拍照」…' : '如「天然气」「净水器」「活性炭」…')}" value="${escapeHtml(state.query)}" autocomplete="off">
       <button class="search-btn" id="searchBtn" title="搜索（回车也可）">搜索</button>
     </div>
   </div>`;
@@ -288,7 +288,49 @@ function buildFlatView(phase) {
   return html;
 }
 
+function buildChecklistView(phase) {
+  let html = '<div class="checklist-plain">';
+  for (const section of phase.sections) {
+    html += `<section class="check-section open" data-section="${escapeHtml(section.title)}">`;
+    html += '<div class="section-header">';
+    html += '<div class="section-header-left">';
+    html += `<h2>${escapeHtml(section.title)}</h2>`;
+    html += '</div>';
+    html += '<div class="section-header-right">';
+    html += `<span class="section-count">${section.items.length} 项</span>`;
+    html += '<span class="section-arrow">▸</span>';
+    html += '</div>';
+    html += '</div>';
+    html += '<div class="section-body">';
+    html += '<ol class="checklist-ol">';
+    for (const item of section.items) {
+      html += `<li>`;
+      html += `<span class="checklist-q">${escapeHtml(item.q)}</span>`;
+      if (item.note) {
+        html += `<p class="checklist-note">${escapeHtml(item.note)}</p>`;
+      }
+      if (item.children) {
+        html += '<ul class="checklist-sub">';
+        for (const child of item.children) {
+          html += `<li>${escapeHtml(child)}</li>`;
+        }
+        html += '</ul>';
+      }
+      html += `</li>`;
+    }
+    html += '</ol>';
+    html += '</div>';
+    html += '</section>';
+  }
+  html += '</div>';
+  return html;
+}
+
 function buildPhaseContent(phase) {
+  if (phase.type === 'checklist') {
+    return buildChecklistView(phase);
+  }
+
   let html = buildStats(phase);
   html += buildControls(phase);
 
