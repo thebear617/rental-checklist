@@ -1,6 +1,6 @@
 const state = {
   query: '',
-  activePhase: 'first-visit',
+  activePhase: 'follow-up',
   allExpanded: false
 };
 
